@@ -1,19 +1,26 @@
 package com.nj.opengallerydemo;
 
+import android.Manifest;
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.DocumentsContract;
 import android.provider.MediaStore;
+import android.support.annotation.NonNull;
 import android.support.annotation.RequiresApi;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_CODE_PICK_FROM_GALLEY = 0;
@@ -21,6 +28,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView mTvUri;
     private TextView mTvInfo;
     private ImageView mIvImage;
+    private TextView mTvPath;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -28,6 +36,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         mIvImage = findViewById(R.id.iv_image);
         mTvInfo = findViewById(R.id.tv_info);
+        mTvPath = findViewById(R.id.tv_path);
         findViewById(R.id.btn_show1).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -40,6 +49,22 @@ public class MainActivity extends AppCompatActivity {
                 selectFromGalleyGetContent();
             }
         });
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        switch (requestCode) {
+            case 1:
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+
+                }else {
+                    Toast.makeText(this, "Permission is denied!" , Toast.LENGTH_SHORT).show();
+                }
+        }
     }
 
     private void selectFromGalleyGetContent() {
@@ -58,13 +83,17 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (resultCode == Activity.RESULT_OK) {
-            String path = null;
+            String path = "";
             Uri uri = data.getData();
             if (uri != null) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                    path = processResultOnKitkat(uri);
-                }else {
+                if (requestCode == REQUEST_CODE_PICK_FROM_GALLEY) {
                     path = processResultBeforeKitkat(uri);
+                }else if(requestCode == REQUEST_CODE_GET_CONTENT_FROM_GALLEY) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                        path = processResultOnKitkat(uri);
+                    }else {
+                        path = processResultBeforeKitkat(uri);
+                    }
                 }
                 showBitmapInfos(path);
             }
@@ -72,6 +101,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showBitmapInfos(String path) {
+        mTvPath.setText(path);
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inJustDecodeBounds = true;
         BitmapFactory.decodeFile(path, options);
@@ -138,6 +168,8 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
             }
+        }else {
+            return processResultBeforeKitkat(uri);
         }
         return null;
     }
