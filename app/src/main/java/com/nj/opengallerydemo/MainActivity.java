@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Build;
@@ -17,6 +18,7 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.text.format.Formatter;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -29,6 +31,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView mTvInfo;
     private ImageView mIvImage;
     private TextView mTvPath;
+    private TextView mTvSize;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,6 +40,7 @@ public class MainActivity extends AppCompatActivity {
         mIvImage = findViewById(R.id.iv_image);
         mTvInfo = findViewById(R.id.tv_info);
         mTvPath = findViewById(R.id.tv_path);
+        mTvSize = findViewById(R.id.tv_size);
         findViewById(R.id.btn_show1).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -80,6 +84,7 @@ public class MainActivity extends AppCompatActivity {
         startActivityForResult(intent, REQUEST_CODE_PICK_FROM_GALLEY);
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (resultCode == Activity.RESULT_OK) {
@@ -96,6 +101,21 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
                 showBitmapInfos(path);
+                Bitmap bitmap = BitmapFactory.decodeFile(path);
+                if (bitmap != null) {
+                    mIvImage.setImageBitmap(bitmap);
+                    int count = bitmap.getByteCount();
+                    int allocationByteCount = bitmap.getAllocationByteCount();
+                    String countStr = Formatter.formatFileSize(this, count);
+                    String allStr = Formatter.formatFileSize(this, allocationByteCount);
+                    String resutlt = "这张图片占用内存大小:\n" +
+                            "bitmap.getByteCount()== " + countStr + "\n" +
+                            "bitmap.getAllocationByteCount()= " + allStr;
+                    mTvSize.setText(resutlt);
+                    bitmap = null;
+                }else {
+                    Toast.makeText(this, "fail", Toast.LENGTH_SHORT).show();
+                }
             }
         }
     }

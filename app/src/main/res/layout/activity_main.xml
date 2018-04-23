@@ -19,12 +19,6 @@
         android:layout_height="wrap_content"
         android:text="ACTION_GET_CONTENT"/>
 
-
-    <ImageView
-        android:id="@+id/iv_image"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
-
     <TextView
         android:id="@+id/tv_path"
         android:layout_width="wrap_content"
@@ -35,4 +29,13 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content" />
 
+    <TextView
+        android:id="@+id/tv_size"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
+    <ImageView
+        android:id="@+id/iv_image"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
 </LinearLayout>
