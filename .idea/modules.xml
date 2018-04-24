@@ -2,7 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/OpenCalleryDemo.iml" filepath="$PROJECT_DIR$/OpenCalleryDemo.iml" />
+      <module fileurl="file://D:\AndroidStudio\workspace\OpenGalleryDemo\OpenCalleryDemo.iml" filepath="D:\AndroidStudio\workspace\OpenGalleryDemo\OpenCalleryDemo.iml" />
+      <module fileurl="file://$PROJECT_DIR$/OpenGalleryDemo.iml" filepath="$PROJECT_DIR$/OpenGalleryDemo.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
     </modules>
   </component>

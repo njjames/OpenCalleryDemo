@@ -2,7 +2,6 @@ package com.nj.opengallerydemo;
 
 import android.Manifest;
 import android.app.Activity;
-import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
@@ -10,6 +9,8 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
+import android.os.Environment;
 import android.provider.DocumentsContract;
 import android.provider.MediaStore;
 import android.support.annotation.NonNull;
@@ -17,21 +18,32 @@ import android.support.annotation.RequiresApi;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
 import android.text.format.Formatter;
+import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.File;
+import java.io.OutputStream;
+
 public class MainActivity extends AppCompatActivity {
+    private static final String TAG = "MainActivity";
     private static final int REQUEST_CODE_PICK_FROM_GALLEY = 0;
     private static final int REQUEST_CODE_GET_CONTENT_FROM_GALLEY = 1;
+    private static final int REQUEST_CODE_CROP_PIC = 2;
     private TextView mTvUri;
     private TextView mTvInfo;
     private ImageView mIvImage;
     private TextView mTvPath;
     private TextView mTvSize;
+    private Bitmap mBitmap;
+    private Uri mUri;
+    private int mWidth;
+    private int mHeight;
+    private Uri mCropUri;
+    private String mPath;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,6 +68,103 @@ public class MainActivity extends AppCompatActivity {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
         }
+        findViewById(R.id.btn_compress1).setOnClickListener(new View.OnClickListener() {
+            @RequiresApi(api = Build.VERSION_CODES.KITKAT)
+            @Override
+            public void onClick(View view) {
+                bitmapCompress1();
+            }
+        });
+        findViewById(R.id.btn_compress2).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                bitmapCompress2();
+            }
+        });
+        findViewById(R.id.btn_compress3).setOnClickListener(new View.OnClickListener() {
+            @RequiresApi(api = Build.VERSION_CODES.KITKAT)
+            @Override
+            public void onClick(View view) {
+                bitmapCompress3();
+            }
+        });
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
+    private void bitmapCompress3() {
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(mPath, options);
+        int width = options.outWidth / 2;
+        int height = options.outHeight / 2;
+        int reqWidth = 200;
+        int reqHeight = 200;
+        int inSampleSize = 1;
+        while (width / inSampleSize >= reqWidth && height / inSampleSize >= reqHeight) {
+            inSampleSize = inSampleSize * 2;
+        }
+        options.inSampleSize = inSampleSize;
+        options.inJustDecodeBounds = false;
+        Bitmap bitmap = BitmapFactory.decodeFile(mPath, options);
+        showBitmapInfos(mPath);
+        bitmapShow(bitmap);
+    }
+
+    private void bitmapCompress2() {
+        if (mBitmap != null) {
+            Intent cropIntent = new Intent("com.android.camera.action.CROP");
+            cropIntent.setDataAndType(mUri, "image/*");
+            cropIntent.putExtra("cropWidth", "true");
+            //下面两参数控制截取的宽和高
+            cropIntent.putExtra("outputX", mWidth / 2);
+            cropIntent.putExtra("outputY", mHeight / 2);
+            String filePath = getFilePath();
+            File file = new File(filePath, System.currentTimeMillis() + "compress2.jpg");
+            mCropUri = Uri.fromFile(file);
+            cropIntent.putExtra("output", mCropUri);
+            startActivityForResult(cropIntent, REQUEST_CODE_CROP_PIC);
+        }
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
+    private void bitmapCompress1() {
+        if (mBitmap != null) {
+            String absolutePath = getFilePath();
+            Log.d(TAG, "absolutePath: " + absolutePath);
+            File file = new File(absolutePath, System.currentTimeMillis() + "compress1.jpg");
+            Uri uri = Uri.fromFile(file);
+            Log.d(TAG, "Uri.fromFile(file): " + uri.toString());
+            try {
+                OutputStream os = getContentResolver().openOutputStream(uri);
+                Bitmap.CompressFormat format = Bitmap.CompressFormat.JPEG;
+                boolean compress = mBitmap.compress(format, 0, os);
+                if (compress) {
+                    Toast.makeText(this, "compress success", Toast.LENGTH_SHORT).show();
+                }
+                String pathName = uri.toString().substring(7);
+                Log.d(TAG, "path: " + pathName);
+                showBitmapInfos(pathName);
+                Bitmap bitmap = BitmapFactory.decodeFile(pathName);
+                if (bitmap != null) {
+                    bitmapShow(bitmap);
+                }
+                os.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    @NonNull
+    private String getFilePath() {
+        File cachePath;
+        if (Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)) {
+            cachePath = getExternalCacheDir();
+        }else {
+            cachePath = getCacheDir();
+        }
+        cachePath.mkdirs();
+        return cachePath.getAbsolutePath();
     }
 
     @Override
@@ -88,36 +197,48 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (resultCode == Activity.RESULT_OK) {
-            String path = "";
-            Uri uri = data.getData();
-            if (uri != null) {
-                if (requestCode == REQUEST_CODE_PICK_FROM_GALLEY) {
-                    path = processResultBeforeKitkat(uri);
-                }else if(requestCode == REQUEST_CODE_GET_CONTENT_FROM_GALLEY) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                        path = processResultOnKitkat(uri);
-                    }else {
-                        path = processResultBeforeKitkat(uri);
-                    }
-                }
-                showBitmapInfos(path);
-                Bitmap bitmap = BitmapFactory.decodeFile(path);
+            if(requestCode == REQUEST_CODE_CROP_PIC) {
+                String pathname = mCropUri.toString().substring(7);
+                showBitmapInfos(pathname);
+                Bitmap bitmap = BitmapFactory.decodeFile(pathname);
                 if (bitmap != null) {
-                    mIvImage.setImageBitmap(bitmap);
-                    int count = bitmap.getByteCount();
-                    int allocationByteCount = bitmap.getAllocationByteCount();
-                    String countStr = Formatter.formatFileSize(this, count);
-                    String allStr = Formatter.formatFileSize(this, allocationByteCount);
-                    String resutlt = "这张图片占用内存大小:\n" +
-                            "bitmap.getByteCount()== " + countStr + "\n" +
-                            "bitmap.getAllocationByteCount()= " + allStr;
-                    mTvSize.setText(resutlt);
-                    bitmap = null;
-                }else {
-                    Toast.makeText(this, "fail", Toast.LENGTH_SHORT).show();
+                    bitmapShow(bitmap);
+                }
+            }else {
+                mUri = data.getData();
+                if (mUri != null) {
+                    if (requestCode == REQUEST_CODE_PICK_FROM_GALLEY) {
+                        mPath = processResultBeforeKitkat(mUri);
+                    } else if (requestCode == REQUEST_CODE_GET_CONTENT_FROM_GALLEY) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                            mPath = processResultOnKitkat(mUri);
+                        } else {
+                            mPath = processResultBeforeKitkat(mUri);
+                        }
+                    }
+                    showBitmapInfos(mPath);
+                    mBitmap = BitmapFactory.decodeFile(mPath);
+                    if (mBitmap != null) {
+                        bitmapShow(mBitmap);
+                        //                    bitmap = null;
+                    } else {
+                        Toast.makeText(this, "fail", Toast.LENGTH_SHORT).show();
+                    }
                 }
             }
         }
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
+    private void bitmapShow(Bitmap bitmap) {
+        mIvImage.setImageBitmap(bitmap);
+        int count = bitmap.getByteCount();
+        int allocationByteCount = bitmap.getAllocationByteCount();
+        String countStr = Formatter.formatFileSize(this, count);
+        String allStr = Formatter.formatFileSize(this, allocationByteCount);
+        String resutlt = "这张图片占用内存大小:" + "getByteCount()= " + countStr +
+                "getAllocationByteCount()= " + allStr;
+        mTvSize.setText(resutlt);
     }
 
     private void showBitmapInfos(String path) {
@@ -125,10 +246,10 @@ public class MainActivity extends AppCompatActivity {
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inJustDecodeBounds = true;
         BitmapFactory.decodeFile(path, options);
-        int width = options.outWidth;
-        int height = options.outHeight;
+        mWidth = options.outWidth;
+        mHeight = options.outHeight;
         options.inJustDecodeBounds = false;
-        mTvInfo.setText("图片的信息是：宽：" + width + ",高：" + height);
+        mTvInfo.setText("图片的信息是：宽：" + mWidth + ",高：" + mHeight);
     }
 
     private String processResultBeforeKitkat(Uri uri) {
